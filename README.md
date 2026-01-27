@@ -36,7 +36,7 @@ This custom node gives you total control over where your models run and where th
     ```
 2.  Clone this repository:
     ```bash
-    git clone [https://github.com/YOUR_USERNAME/ComfyUI-AnyDeviceOffload](https://github.com/YOUR_USERNAME/ComfyUI-AnyDeviceOffload)
+    git clone https://github.com/FearL0rd/ComfyUI-AnyDeviceOffload.git
     ```
 3.  **Restart ComfyUI.**
 
