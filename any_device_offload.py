@@ -18,6 +18,18 @@ try:
             return xformers.ops.original_memory_efficient_attention(query, key, value, attn_bias, p, scale)
         
         # 2. CPU Fallback (Standard PyTorch)
+        
+        # [CRITICAL FIX] Force all inputs to Float32. 
+        # Even if the model inputs were fixed, internal layers might still produce BF16.
+        if query.dtype != torch.float32:
+            query = query.to(torch.float32)
+        if key.dtype != torch.float32:
+            key = key.to(torch.float32)
+        if value.dtype != torch.float32:
+            value = value.to(torch.float32)
+
+        # PyTorch expects (Batch, Heads, SeqLen, Dim)
+        # xFormers sends (Batch, SeqLen, Heads, Dim)
         q = query.transpose(1, 2)
         k = key.transpose(1, 2)
         v = value.transpose(1, 2)
@@ -30,8 +42,13 @@ try:
                 attn_mask = None
             elif isinstance(attn_bias, torch.Tensor):
                 attn_mask = attn_bias
+                # Ensure mask matches dtype if it's a tensor
+                if attn_mask.dtype != torch.float32 and attn_mask.dtype != torch.bool:
+                     attn_mask = attn_mask.to(torch.float32)
         
         out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=p, is_causal=is_causal, scale=scale)
+        
+        # Transpose back to xFormers layout
         return out.transpose(1, 2)
 
     # Overwrite the library function with our wrapper
@@ -119,7 +136,7 @@ class AnyDeviceOffload:
                 if keep_in_memory:
                     target_model.to(device)
 
-                # B. UNIVERSAL INPUT CASTER (Fixes 'missing argument' errors on WanModel/Flux)
+                # B. UNIVERSAL INPUT CASTER (Fixes 'missing argument' & 'dtype' errors)
                 if is_cpu and not hasattr(target_model, "is_cpu_patched"):
                     print(" -> [CPU] Applying Universal Input Caster...")
                     
