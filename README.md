@@ -10,6 +10,7 @@ This custom node gives you total control over where your models run and where th
 
 <img width="1517" height="496" alt="image" src="https://github.com/user-attachments/assets/3b98fafd-f6db-4f94-b2e3-c452eac42dd4" />
 
+<img width="309" height="220" alt="image" src="https://github.com/user-attachments/assets/607eabf1-385c-4ad7-84b8-a2c9b3a8d6da" />
 
 
 ### ✨ Key Features
