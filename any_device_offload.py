@@ -5,31 +5,36 @@ import comfy.model_management
 import gc
 import sys
 
-# --- GLOBAL XFORMERS PATCH (CPU FIX) ---
+# --- GLOBAL ATTENTION CONTROLLER (Preserves V17 Fixes) ---
 try:
     import xformers.ops
-    # Save the original function so we don't break GPU usage
     if not hasattr(xformers.ops, "original_memory_efficient_attention"):
         xformers.ops.original_memory_efficient_attention = xformers.ops.memory_efficient_attention
 
     def traffic_controlled_attention(query, key, value, attn_bias=None, p=0.0, scale=None):
-        # 1. If on GPU, use the original xFormers (Fast)
-        if query.device.type != "cpu":
+        device_type = query.device.type
+        original_dtype = query.dtype # Save for later restoration
+
+        # 1. HARDWARE CHECK (SM < 80)
+        use_fast_kernels = True
+        if device_type == "cuda":
+            try:
+                props = torch.cuda.get_device_properties(query.device)
+                sm_version = props.major * 10 + props.minor
+                if sm_version < 80:
+                    use_fast_kernels = False
+            except:
+                pass 
+
+        # 2. EXECUTION PATHS
+        if use_fast_kernels and device_type != "cpu":
             return xformers.ops.original_memory_efficient_attention(query, key, value, attn_bias, p, scale)
         
-        # 2. CPU Fallback (Standard PyTorch)
-        
-        # [CRITICAL FIX] Force all inputs to Float32. 
-        # Even if the model inputs were fixed, internal layers might still produce BF16.
-        if query.dtype != torch.float32:
-            query = query.to(torch.float32)
-        if key.dtype != torch.float32:
-            key = key.to(torch.float32)
-        if value.dtype != torch.float32:
-            value = value.to(torch.float32)
+        # PATH B: Legacy / CPU Fallback
+        if query.dtype != torch.float32: query = query.to(torch.float32)
+        if key.dtype != torch.float32: key = key.to(torch.float32)
+        if value.dtype != torch.float32: value = value.to(torch.float32)
 
-        # PyTorch expects (Batch, Heads, SeqLen, Dim)
-        # xFormers sends (Batch, SeqLen, Heads, Dim)
         q = query.transpose(1, 2)
         k = key.transpose(1, 2)
         v = value.transpose(1, 2)
@@ -42,45 +47,33 @@ try:
                 attn_mask = None
             elif isinstance(attn_bias, torch.Tensor):
                 attn_mask = attn_bias
-                # Ensure mask matches dtype if it's a tensor
                 if attn_mask.dtype != torch.float32 and attn_mask.dtype != torch.bool:
                      attn_mask = attn_mask.to(torch.float32)
         
         out = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=p, is_causal=is_causal, scale=scale)
         
-        # Transpose back to xFormers layout
+        # Restore Dtype (Fixes float != Half error)
+        if out.dtype != original_dtype:
+            out = out.to(original_dtype)
+
         return out.transpose(1, 2)
 
-    # Overwrite the library function with our wrapper
     xformers.ops.memory_efficient_attention = traffic_controlled_attention
 except ImportError:
     pass
 # -----------------------------
 
 def get_available_devices():
-    """
-    Returns a list of devices, sorted by priority.
-    The first item in the list becomes the default selection in ComfyUI.
-    """
     devices = []
-    
-    # 1. Priority: NVIDIA/AMD GPUs
     if torch.cuda.is_available():
         count = torch.cuda.device_count()
         for i in range(count):
             devices.append(f"cuda:{i}")
-
-    # 2. Priority: Mac Silicon
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         devices.append("mps")
-
-    # 3. Priority: Intel XPU
     if hasattr(torch, "xpu") and torch.xpu.is_available():
         devices.append("xpu")
-        
-    # 4. Fallback: CPU
     devices.append("cpu")
-    
     return devices
 
 class AnyDeviceOffload:
@@ -89,12 +82,11 @@ class AnyDeviceOffload:
 
     @classmethod
     def INPUT_TYPES(s):
-        # The list is now sorted so the best GPU is index 0
         device_list = get_available_devices()
         return {
             "required": {
                 "target_device": (device_list, ),
-                "vae_mode": (["Vae Patched", "Original"], ),
+                "vae_mode": (["Original", "Vae Patched"], ),
                 "keep_in_memory": ("BOOLEAN", {"default": True}),
             },
             "optional": {
@@ -116,7 +108,6 @@ class AnyDeviceOffload:
         except:
             device = torch.device("cpu")
 
-        # CPU Detection
         is_cpu = device.type == 'cpu'
         offload_target = device if keep_in_memory else torch.device("cpu")
         
@@ -133,39 +124,76 @@ class AnyDeviceOffload:
                 if is_cpu:
                     target_model.to(dtype=torch.float32)
 
+                # B. FORCE DEVICE SYNC (Initial Move)
                 if keep_in_memory:
-                    target_model.to(device)
+                    try:
+                        target_model.to(device)
+                    except:
+                        pass
+                    
+                    if hasattr(model, "patcher"):
+                        model.patcher.load_device = device
+                        model.patcher.offload_device = offload_target
+                        model.patcher.current_device = device
 
-                # B. UNIVERSAL INPUT CASTER (Fixes 'missing argument' & 'dtype' errors)
-                if is_cpu and not hasattr(target_model, "is_cpu_patched"):
-                    print(" -> [CPU] Applying Universal Input Caster...")
+                # C. [NUCLEAR FIX] INSTALL RUNTIME DEVICE GUARD
+                if not hasattr(target_model, "is_device_guarded"):
+                    print(" -> [System] Installing Runtime Device Guard...")
                     
                     if hasattr(target_model, "diffusion_model"):
-                        target_model.diffusion_model.original_forward_cpu = target_model.diffusion_model.forward
+                        victim_model = target_model.diffusion_model
+                        victim_model.original_forward_guard = victim_model.forward
 
-                        def universal_cpu_forward(self, *args, **kwargs):
-                            # 1. Cast Positional Arguments
-                            new_args = []
-                            for arg in args:
-                                if isinstance(arg, torch.Tensor) and arg.dtype != torch.float32:
-                                    new_args.append(arg.to(torch.float32))
-                                else:
-                                    new_args.append(arg)
+                        def guarded_forward(self, *args, **kwargs):
+                            # 1. Identify Input Device (Check ARGS and KWARGS)
+                            target_run_device = None
                             
-                            # 2. Cast Keyword Arguments
-                            new_kwargs = {}
-                            for k, v in kwargs.items():
-                                if isinstance(v, torch.Tensor) and v.dtype != torch.float32:
-                                    new_kwargs[k] = v.to(torch.float32)
-                                else:
-                                    new_kwargs[k] = v
+                            # Scan positional args
+                            for arg in args:
+                                if isinstance(arg, torch.Tensor):
+                                    target_run_device = arg.device
+                                    break
+                            
+                            # [FIX] Scan keyword args if not found yet
+                            if target_run_device is None:
+                                for v in kwargs.values():
+                                    if isinstance(v, torch.Tensor):
+                                        target_run_device = v.device
+                                        break
+                            
+                            # 2. Self-Healing Check
+                            if target_run_device is not None:
+                                try:
+                                    current_param_device = next(self.parameters()).device
+                                    if current_param_device != target_run_device:
+                                        # print(f"[Guard] Mismatch! {current_param_device} vs {target_run_device}. Moving...")
+                                        self.to(target_run_device)
+                                except Exception as e:
+                                    pass # Suppress generic guard errors
 
-                            # 3. Pass exact structure to original function
-                            return self.original_forward_cpu(*new_args, **new_kwargs)
+                            # 3. CPU Float32 Casting
+                            # [FIX] Ensure target_run_device exists before checking .type
+                            if target_run_device is not None and target_run_device.type == "cpu":
+                                new_args = []
+                                for arg in args:
+                                    if isinstance(arg, torch.Tensor) and arg.dtype != torch.float32:
+                                        new_args.append(arg.to(torch.float32))
+                                    else:
+                                        new_args.append(arg)
+                                new_kwargs = {}
+                                for k, v in kwargs.items():
+                                    if isinstance(v, torch.Tensor) and v.dtype != torch.float32:
+                                        new_kwargs[k] = v.to(torch.float32)
+                                    else:
+                                        new_kwargs[k] = v
+                                return self.original_forward_guard(*new_args, **new_kwargs)
+                            else:
+                                return self.original_forward_guard(*args, **kwargs)
 
-                        target_model.diffusion_model.forward = types.MethodType(universal_cpu_forward, target_model.diffusion_model)
-                        target_model.is_cpu_patched = True
+                        victim_model.forward = types.MethodType(guarded_forward, victim_model)
+                        target_model.is_device_guarded = True
 
+            # D. Update Internal Flags
             model.load_device = device
             model.offload_device = offload_target
             if keep_in_memory:
@@ -177,9 +205,13 @@ class AnyDeviceOffload:
                 target_clip = clip.cond_stage_model
                 if is_cpu:
                     target_clip.to(dtype=torch.float32)
+                
                 if keep_in_memory:
-                    target_clip.to(device)
-            
+                    try:
+                        target_clip.to(device)
+                    except:
+                        pass
+
             if hasattr(clip, "patcher"):
                 clip.patcher.load_device = device
                 clip.patcher.offload_device = offload_target
@@ -195,7 +227,6 @@ class AnyDeviceOffload:
                 target_vae = vae.model
 
             if target_vae:
-                # Setup Dynamic State
                 if not hasattr(target_vae, "offload_node_state"):
                     target_vae.offload_node_state = {}
                 target_vae.offload_node_state['keep'] = keep_in_memory
@@ -204,16 +235,17 @@ class AnyDeviceOffload:
                 target_vae.offload_node_state['model_ref'] = model
                 target_vae.offload_node_state['clip_ref'] = clip
 
-                # Precision
                 if is_cpu or vae_mode == "Vae Patched":
                     target_vae.to(dtype=torch.float32)
 
-                # Move
                 if keep_in_memory:
-                    target_vae.to(device)
-                    target_vae.eval()
+                    try:
+                        target_vae.to(device)
+                        target_vae.eval()
+                    except:
+                        pass
 
-                # VAE Wrapper
+                # VAE Wrapper (Preserved)
                 if not hasattr(target_vae, "is_offload_patched"):
                     target_vae.original_decode_patched = target_vae.decode
 
@@ -225,12 +257,10 @@ class AnyDeviceOffload:
                         try:
                             # 1. Type Safety
                             if running_on_cpu:
-                                if z.dtype != torch.float32:
-                                    z = z.to(torch.float32)
+                                if z.dtype != torch.float32: z = z.to(torch.float32)
                             else:
                                 dtype_target = next(self.parameters()).dtype
-                                if z.dtype != dtype_target:
-                                    z = z.to(dtype_target)
+                                if z.dtype != dtype_target: z = z.to(dtype_target)
                             
                             # 2. Device Safety
                             current_weight_device = next(self.parameters()).device
@@ -249,6 +279,8 @@ class AnyDeviceOffload:
                                 if linked_model and hasattr(linked_model, "model"):
                                     linked_model.model.to("cpu")
                                     linked_model.current_device = torch.device("cpu")
+                                    if hasattr(linked_model, "patcher"):
+                                        linked_model.patcher.current_device = torch.device("cpu")
                                 
                                 if linked_clip and hasattr(linked_clip, "cond_stage_model"):
                                     linked_clip.cond_stage_model.to("cpu")
@@ -281,4 +313,3 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AnyDeviceOffload": "Offload Anything (GPU/CPU)"
 }
-
