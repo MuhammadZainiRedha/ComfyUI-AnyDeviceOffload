@@ -86,7 +86,9 @@ Add the node **"Offload Anything (GPU/CPU)"** to your workflow (found under `uti
    making the default selections set to help beginners in ComfyUI
  ## v1.0.2 (Add legacy GPU support (SM < 8.0) and fix dynamic device switching)
    This update introduces a robust "Runtime Device Guard" and intelligent hardware detection to solve crashes on older GPUs and multi-GPU workflows
-
+ ## v1.0.3 (feat: make 'Vae Patched' the default mode for safer decoding)
+   Updated the INPUT_TYPES definition to set "Vae Patched" as the default selection.
+   
 ---
 
 ### 👨‍💻 Credits
