@@ -5,7 +5,7 @@ import comfy.model_management
 import gc
 import sys
 
-# --- GLOBAL ATTENTION CONTROLLER (Preserves V17 Fixes) ---
+# --- GLOBAL ATTENTION CONTROLLER ---
 try:
     import xformers.ops
     if not hasattr(xformers.ops, "original_memory_efficient_attention"):
@@ -86,7 +86,8 @@ class AnyDeviceOffload:
         return {
             "required": {
                 "target_device": (device_list, ),
-                "vae_mode": (["Original", "Vae Patched"], ),
+                # Swapped order: Vae Patched is now the first item (Default)
+                "vae_mode": (["Vae Patched", "Original"], ),
                 "keep_in_memory": ("BOOLEAN", {"default": True}),
             },
             "optional": {
@@ -154,7 +155,7 @@ class AnyDeviceOffload:
                                     target_run_device = arg.device
                                     break
                             
-                            # [FIX] Scan keyword args if not found yet
+                            # Scan keyword args if not found yet
                             if target_run_device is None:
                                 for v in kwargs.values():
                                     if isinstance(v, torch.Tensor):
